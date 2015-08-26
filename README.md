@@ -18,3 +18,25 @@ Scripts for exporting/importing bika.lims field values to/from a zip file
     http://docs.plone.org/develop/plone/misc/commandline.html for details.
 
 ## import
+
+    $ bin/client1 run import_bika_setup.py --help
+
+    usage: interpreter [-h] -s SITEPATH -i INPUTFILE [-u USERNAME] [-t TITLE]
+                       [-l LANGUAGE] [-p PROFILES]
+    
+    Import bika setupdata created by export_bika_setup.py
+    
+    optional arguments:
+      -h, --help    show this help message and exit
+      -s SITEPATH   full path to Plone site root. Site will be created if it does
+                    not already exist.
+      -i INPUTFILE  input zip file, created by the export script.
+      -u USERNAME   zope admin username (default: admin)
+      -t TITLE      If a new Plone site is created, this specifies the site Title.
+      -l LANGUAGE   If a new Plone site is created, this is the site language.
+                    (default: en)
+      -p PROFILES   If a new Plone site is created, this option may be used to
+                    specify additional profiles to be activated.
+    
+    This script is meant to be run with zopepy or bin/instance. See
+    http://docs.plone.org/develop/plone/misc/commandline.html for details.
