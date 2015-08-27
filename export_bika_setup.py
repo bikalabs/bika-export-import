@@ -167,8 +167,7 @@ class Main:
             ws.cell(column=2, row=nr_rows + row).value = field.getName()
             for col, key in enumerate(keys):
                 c_value = v.get(key, '')
-                if key.lower().find('uid') > -1:
-                    ws.cell(column=col + 3, row=nr_rows + row).value = c_value
+                ws.cell(column=col + 3, row=nr_rows + row).value = c_value
 
         return sheetname
 
@@ -201,12 +200,24 @@ class Main:
 
     def mutate(self, instance, field):
         value = field.get(instance)
+        # Booleans are special; we'll str and return them.
+        if value is True or value is False:
+            return str(value)
+        # Zero is special: it's false-ish, but the value is important.
+        if value is 0:
+            return 0
+        # Other falsish values make empty cells.
         if not value:
             return ''
+        # Date fields get stringed to rfc8222
         if Field.IDateTimeField.providedBy(field):
             return value.rfc822() if value else None
-        elif Field.IFileField.providedBy(field) \
-                and field.type != 'text':  # TextField implements IFileField!
+        # TextField implements IFileField, so we must handle it
+        # before IFileField. It's just returned verbatim.
+        elif Field.ITextField.providedBy(field):
+            return value
+        # Files get saved into tempdir, and the cell content is the filename
+        elif Field.IFileField.providedBy(field):
             if not value.size:
                 return ''
             extension = self.get_extension(value.content_type)
