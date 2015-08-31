@@ -21,7 +21,7 @@ import openpyxl
 
 
 def excepthook(typ, value, tb):
-    import pdb, traceback
+import transaction
 
     traceback.print_exception(typ, value, tb)
     pdb.pm()
