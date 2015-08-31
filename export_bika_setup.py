@@ -284,8 +284,8 @@ class Main:
         for row, brain in enumerate(brains):
             instance = brain.getObject()
             # path
-            path = '/'.join(instance.getPhysicalPath()).replace(portal_path, '')
-            ws.cell(column=1, row=row + 2).value = path
+            path = '/'.join(instance.getPhysicalPath()[:-1])
+            ws.cell(column=1, row=row + 2).value = path.replace(portal_path, '')
             # uid
             ws.cell(column=2, row=row + 2).value = instance.UID()
             # then schema field values
