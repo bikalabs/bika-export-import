@@ -19,20 +19,16 @@ from Products.CMFCore.interfaces import ITypeInformation
 from Products.CMFCore.utils import getToolByName
 import openpyxl
 
-
-def excepthook(typ, value, tb):
 import transaction
 
 #
 # def excepthook(typ, value, tb):
 #     import pdb, traceback
 #
-    traceback.print_exception(typ, value, tb)
-    pdb.pm()
-    pdb.set_trace()
-
-
-sys.excepthook = excepthook
+#     traceback.print_exception(typ, value, tb)
+#     pdb.pm()
+#     pdb.set_trace()
+# sys.excepthook = excepthook
 
 
 # If creating a new Plone site:
