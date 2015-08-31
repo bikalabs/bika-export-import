@@ -231,7 +231,7 @@ class Main:
             if field.multiValued:
                 return self.write_reference_values(instance, field)
             else:
-                return value.Title()
+                return value.id
         elif Field.ILinesField.providedBy(field):
             return "\n".join(value)
         # depend on value of field, to decide mutation.
