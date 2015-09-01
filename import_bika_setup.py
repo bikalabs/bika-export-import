@@ -21,14 +21,15 @@ import openpyxl
 
 import transaction
 
-#
-# def excepthook(typ, value, tb):
-#     import pdb, traceback
-#
-#     traceback.print_exception(typ, value, tb)
-#     pdb.pm()
-#     pdb.set_trace()
-# sys.excepthook = excepthook
+
+def excepthook(typ, value, tb):
+    import pudb as pdb
+    import traceback
+
+    traceback.print_exception(typ, value, tb)
+    pdb.pm()
+    pdb.set_trace()
+sys.excepthook = excepthook
 
 
 # If creating a new Plone site:
@@ -148,8 +149,6 @@ class Main:
             # named after the relationship.
             ids = []
             if field.relationship[:31] not in self.wb:
-                print "%s/%s: Cannot find sheet %s." % (
-                    instance, field.relationship, field.relationship[:31])
                 return None
             ws = self.wb[field.relationship[:31]]
             ids = []
@@ -205,34 +204,46 @@ class Main:
             return matches
 
     def set(self, instance, field, value):
-        mutator = field.getMutator(instance)
+        # mutator = field.getMutator(instance)
         outval = self.mutate(instance, field, value)
-        return mutator(outval)
+        if field.getName() == 'id':
+            # I don't know why, but if we use field.set for setting the id, it
+            # lands in the database as a unicode string, causing catalog failure
+            instance.id = outval
+        else:
+            field.set(instance, outval)
 
     def mutate(self, instance, field, value):
+        # Ints and bools are transparent
         if type(value) in (int, bool):
             return value
+        # All strings must be encoded
         if isinstance(value, unicode):
             value = value.encode('utf-8')
-        elif isinstance(field, RecordField):
+
+        # RecordField is a single dictionary from the lookup table
+        if isinstance(field, RecordField):
             value = self.resolve_records(instance, field, value) \
                 if value else {}
-        if isinstance(field, RecordsField) or \
+        # RecordsField is a list of dictionaries from the lookup table
+        elif isinstance(field, RecordsField) or \
                 (isinstance(value, basestring)
                  and value
                  and value.endswith("_values")):
             value = self.resolve_records(instance, field, value) \
                 if value else []
-        elif Field.IReferenceField.providedBy(field):
+
+        # ReferenceField looks up single ID from cell value, or multiple
+        # IDs from a lookup table
+        if Field.IReferenceField.providedBy(field):
             value = self.resolve_reference_ids_to_uids(instance, field, value)
-        elif Field.ILinesField.providedBy(field):
+        # LinesField was converted to a multiline string on export
+        if Field.ILinesField.providedBy(field):
             value = value.splitlines() if value else ()
-        # TextField implements IFileField, so we must handle it before
-        # IFileField.  It does nothing to the field value.
-        elif Field.ITextField.providedBy(field):
-            pass
-        elif value and Field.IFileField.providedBy(field):
-            # XXX should not be reading entire file contents into mem.
+        # XXX THis should not be reading entire file contents into mem.
+        # TextField provides the IFileField interface, these must be ignored.
+        elif value and Field.IFileField.providedBy(field) \
+                and not Field.ITextField.providedBy(field):
             value = open(value).read()
         return value
 
@@ -241,20 +252,23 @@ class Main:
         schema = instance.schema
         ws = self.wb['Laboratory']
         for row in ws.rows:
-            field = schema[row[0].value]
-            self.set(instance, field, row[1].value)
+            fieldname = row[0].value
+            cellvalue = row[1].value
+            field = schema[fieldname]
+            self.set(instance, field, cellvalue)
 
     def import_bika_setup(self):
         instance = self.portal.bika_setup
         schema = instance.schema
         ws = self.wb['BikaSetup']
         for row in ws.rows:
-            field = schema[row[0].value]
-            self.set(instance, field, row[1].value)
+            fieldname = row[0].value
+            cellvalue = row[1].value
+            field = schema[fieldname]
+            self.set(instance, field, cellvalue)
 
     def import_portal_type(self, portal_type):
         if portal_type not in self.wb:
-            print "No worksheet found for type %s" % portal_type
             return None
         pt = getToolByName(self.portal, 'portal_types')
         if portal_type not in pt:
@@ -278,7 +292,7 @@ class Main:
             # target object.  That's like, four extra AT objects per relation.
             # Here they get added to deferred_targets
 
-            instance = _createObjectByType(portal_type, parent, instance_id)
+            instance = fti.constructInstance(parent, instance_id)
             instance.unmarkCreationFlag()
             instance.reindexObject()
             for fieldname, value in rowdict.items():
@@ -312,6 +326,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-t',
         dest='title',
+        default='Plone',
         help='If a new Plone site is created, this specifies the site Title.'),
     parser.add_argument(
         '-l',
