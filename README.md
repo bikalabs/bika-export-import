@@ -1,5 +1,7 @@
 # bika-export-import
-Scripts for exporting/importing bika.lims field values to/from a zip file
+Scripts for exporting/importing bika.lims field values to/from a zip file.  The zip file contains setupdata.xlsx, and a collection of files which match the contents of File and Image fields.
+
+> This requires a recent openpyxl; however bika.lims still pins openpyxl to 1.5.8 in setup.py.  This is no longer required and before using these scripts, this version pin should be removed, and buildout re-run.
 
 ## export
 
