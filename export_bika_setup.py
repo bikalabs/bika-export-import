@@ -1,35 +1,22 @@
-# usage: interpreter [-h] [-s SITEPATH] [-u USERNAME] [-o OUTPUTFILE]
-#
-# Export bika_setup into an Open XML (XLSX) workbook
-#
-# optional arguments:
-#   -h, --help     show this help message and exit
-#   -s SITEPATH    full path to site root (default: Plone)
-#   -u USERNAME    zope admin username (default: admin)
-#   -o OUTPUTFILE  output zip file name (default: SITEPATH.zip)
-#
-# This script is meant to be run with zopepy or bin/instance. See
-# http://docs.plone.org/develop/plone/misc/commandline.html for details.
+from AccessControl.SecurityManagement import newSecurityManager
+from Products.Archetypes import Field
+from Products.CMFCore.utils import getToolByName
 
 import argparse
+import openpyxl
 import os
-import sys
+import shutil
 import tempfile
 import zipfile
-import shutil
 
-from AccessControl.SecurityManagement import newSecurityManager
-from bika.lims.catalog import getCatalog
-from Products.Archetypes import Field
-from Products.CMFCore.interfaces import ITypeInformation
-from Products.CMFCore.utils import getToolByName
-import openpyxl
 
 # def excepthook(typ, value, tb):
-#     import pdb, traceback
+#     import pudb as pdb
+#     import traceback
 #     traceback.print_exception(typ, value, tb)
 #     pdb.pm()
-# sys.excepthook = excepthook
+#     pdb.set_trace()
+# import sys; sys.excepthook = excepthook
 
 export_types = [
     'Client',
