@@ -1,35 +1,28 @@
-import argparse
-import os
-import sys
-import tempfile
-import zipfile
-import shutil
-import pdb
-import traceback
-import sys
-
+from AccessControl.SecurityManagement import newSecurityManager
+from Products.Archetypes import Field
 from Products.ATExtensions.ateapi import RecordField, RecordsField
+from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.factory import _DEFAULT_PROFILE
 from Products.CMFPlone.factory import addPloneSite
-from Products.CMFPlone.utils import _createObjectByType
-from AccessControl.SecurityManagement import newSecurityManager
-from bika.lims.catalog import getCatalog
-from Products.Archetypes import Field
-from Products.CMFCore.interfaces import ITypeInformation
-from Products.CMFCore.utils import getToolByName
+
 import openpyxl
 
+import argparse
+import os
+import pprint
+import shutil
+import tempfile
 import transaction
+import zipfile
 
 
-def excepthook(typ, value, tb):
-    import pudb as pdb
-    import traceback
-
-    traceback.print_exception(typ, value, tb)
-    pdb.pm()
-    pdb.set_trace()
-sys.excepthook = excepthook
+# def excepthook(typ, value, tb):
+#     import pudb as pdb
+#     import traceback
+#     traceback.print_exception(typ, value, tb)
+#     pdb.pm()
+#     pdb.set_trace()
+# import sys; sys.excepthook = excepthook
 
 
 # If creating a new Plone site:
@@ -85,21 +78,24 @@ export_types = [
 class Main:
     def __init__(self, args):
         self.args = args
-        self.deferred_targets = []
+        self.deferred = []
 
     def __call__(self):
         """Export entire bika site
         """
         # pose as user
+        # noinspection PyUnresolvedReferences
         self.user = app.acl_users.getUserById(self.args.username)
         newSecurityManager(None, self.user)
         # get or create portal object
         try:
+            # noinspection PyUnresolvedReferences
             self.portal = app.unrestrictedTraverse(self.args.sitepath)
         except KeyError:
             profiles = default_profiles
             if self.args.profiles:
                 profiles += list(self.args.profiles)
+            # noinspection PyUnresolvedReferences
             addPloneSite(
                 app,
                 self.args.sitepath,
@@ -109,6 +105,7 @@ class Main:
                 setup_content=True,
                 default_language=self.args.language
             )
+            # noinspection PyUnresolvedReferences
             self.portal = app.unrestrictedTraverse(self.args.sitepath)
         # Extract zipfile
         self.tempdir = tempfile.mkdtemp()
@@ -125,6 +122,17 @@ class Main:
         # Remove tempdir
         shutil.rmtree(self.tempdir)
 
+        # Resolve deferred/circular references
+        self.solve_deferred()
+
+        # Rebuild catalogs
+        for c in ['bika_analysis_catalog',
+                  'bika_catalog',
+                  'bika_setup_catalog',
+                  'portal_catalog']:
+            print 'rebuilding %s' % c
+            self.portal[c].clearFindAndRebuild()
+
         transaction.commit()
 
     def get_catalog(self, portal_type):
@@ -135,7 +143,7 @@ class Main:
 
     def resolve_reference_ids_to_uids(self, instance, field, value):
         """Get target UIDs for any ReferenceField.
-        If targets do not exist, the requirement is added to deferred_targets.
+        If targets do not exist, the requirement is added to deferred.
         """
         # We make an assumption here, that if there are multiple allowed
         # types, they will all be indexed in the same catalog.
@@ -162,27 +170,22 @@ class Main:
             if not ids:
                 return []
             final_value = []
-            for v in value:
-                brain = catalog(portal_type=field.allowed_types, id=v)
+            for vid in ids:
+                brain = catalog(portal_type=field.allowed_types, id=vid)
                 if brain:
-                    final_value.append(brain.getObject())
+                    final_value.append(brain[0].getObject())
                 else:
-                    self.deferred_targets.append({
-                        'instance': instance,
-                        'field': field,
-                        'id': v
-                    })
+                    self.defer(instance, field, catalog,
+                               field.allowed_types, vid)
             return final_value
         else:
-            brain = catalog(portal_type=field.allowed_types, id=value)
-            if brain:
-                return brain[0].getObject()
-            else:
-                self.deferred_targets.append({
-                    'instance': instance,
-                    'field': field,
-                    'id': value
-                })
+            if value:
+                brain = catalog(portal_type=field.allowed_types, id=value)
+                if brain:
+                    return brain[0].getObject()
+                else:
+                    self.defer(instance, field, catalog,
+                               field.allowed_types, value)
         return None
 
     def resolve_records(self, instance, field, value):
@@ -229,7 +232,7 @@ class Main:
         elif isinstance(field, RecordsField) or \
                 (isinstance(value, basestring)
                  and value
-                 and value.endswith("_values")):
+                 and value.endswith('_values')):
             value = self.resolve_records(instance, field, value) \
                 if value else []
 
@@ -272,7 +275,7 @@ class Main:
             return None
         pt = getToolByName(self.portal, 'portal_types')
         if portal_type not in pt:
-            print "Error: %s not found in portal_types." % portal_type
+            print 'Error: %s not found in portal_types.' % portal_type
             return None
         fti = pt[portal_type]
         ws = self.wb[portal_type]
@@ -287,17 +290,57 @@ class Main:
             del (rowdict['id'])
             parent = self.portal.unrestrictedTraverse(path)
 
-            # Sampletype<->SamplePoint relations are not really good things.
-            # the source setters set the back-reference directly into the
-            # target object.  That's like, four extra AT objects per relation.
-            # Here they get added to deferred_targets
-
             instance = fti.constructInstance(parent, instance_id)
             instance.unmarkCreationFlag()
             instance.reindexObject()
             for fieldname, value in rowdict.items():
                 field = instance.schema[fieldname]
                 self.set(instance, field, value)
+
+    def defer(self, instance, field, catalog, allowed_types, target_id):
+        self.deferred.append({
+            'instance': instance,
+            'field': field,
+            'catalog': catalog,
+            'allowed_types': allowed_types,
+            'target_id': target_id,
+        })
+
+    def solve_deferred(self):
+        # walk through self.deferred and link outstanding references
+        if self.deferred:
+            print 'Attempting to solve %s deferred reference targets' % \
+                  len(self.deferred)
+        nr_unsolved = [0, len(self.deferred)]
+        while nr_unsolved[-1] > nr_unsolved[-2]:
+            unsolved = []
+            for d in self.deferred:
+                src_obj = d['instance']
+                src_field = d['field']
+                target_id = d['target_id']
+                allowed_types = d['allowed_types']
+                catalog = d['catalog']
+
+                try:
+                    proxies = catalog(portal_type=allowed_types, id=target_id)
+                except:
+                    continue
+                if len(proxies) > 0:
+                    obj = proxies[0].getObject()
+                    if src_field.multiValued:
+                        value = src_field.get(src_obj)
+                        if obj.UID() not in value:
+                            value.append(obj.UID())
+                    else:
+                        value = obj.UID()
+                    src_field.set(src_obj, value)
+                else:
+                    unsolved.append(d)
+            self.deferred = unsolved
+            nr_unsolved.append(len(unsolved))
+        if self.deferred:
+            print 'Failed to solve %s deferred targets:' % len(self.deferred)
+            pprint.pprint(self.deferred)
 
 
 if __name__ == '__main__':
