@@ -26,6 +26,8 @@ import zipfile
 
 
 # If creating a new Plone site:
+from zope.component.hooks import setSite
+
 default_profiles = [
     'plonetheme.classic:default',
     'plonetheme.sunburst:default',
@@ -107,6 +109,7 @@ class Main:
             )
             # noinspection PyUnresolvedReferences
             self.portal = app.unrestrictedTraverse(self.args.sitepath)
+        setSite(self.portal)
         # Extract zipfile
         self.tempdir = tempfile.mkdtemp()
         zf = zipfile.ZipFile(self.args.inputfile, 'r')
