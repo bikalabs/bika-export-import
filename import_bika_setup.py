@@ -250,7 +250,10 @@ class Main:
         # TextField provides the IFileField interface, these must be ignored.
         elif value and Field.IFileField.providedBy(field) \
                 and not Field.ITextField.providedBy(field):
-            value = open(value).read()
+            if not os.path.exists(os.path.join(self.tempdir, value)):
+                print "Expected file does not exist: " + value
+                return ''
+            value = open(os.path.join(self.tempdir, value)).read()
         return value
 
     def import_laboratory(self):
