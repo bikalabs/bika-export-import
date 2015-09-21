@@ -288,15 +288,22 @@ class Main:
         keys = [cell.value for cell in ws.rows[0]]
         for rownr, row in enumerate(ws.rows[1:]):
             rowdict = dict(zip(keys, [cell.value for cell in row]))
+            # First, some fields we manually extract, to prevent them
+            # from being handled by the loop below:
             path = rowdict['path'].encode('utf-8').strip('/').split('/')
             del (rowdict['path'])
             uid = rowdict['uid'].encode('utf-8')
             del (rowdict['uid'])
             instance_id = rowdict['id'].encode('utf-8')
             del (rowdict['id'])
-            parent = self.portal.unrestrictedTraverse(path)
+            # We need to get 'title', for the case of aberrations with no value
+            # it's really required, so we use the ID in these cases.
+            title = rowdict['title'].encode('utf-8') if rowdict['title'] \
+                else instance_id
+            del (rowdict['title'])
 
-            instance = fti.constructInstance(parent, instance_id)
+            parent = self.portal.unrestrictedTraverse(path)
+            instance = fti.constructInstance(parent, instance_id, title=title)
             instance.unmarkCreationFlag()
             instance.reindexObject()
             for fieldname, value in rowdict.items():
