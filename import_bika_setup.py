@@ -86,29 +86,13 @@ class Main:
         """Export entire bika site
         """
         # pose as user
-        # noinspection PyUnresolvedReferences
         self.user = app.acl_users.getUserById(self.args.username)
         newSecurityManager(None, self.user)
         # get or create portal object
         try:
-            # noinspection PyUnresolvedReferences
             self.portal = app.unrestrictedTraverse(self.args.sitepath)
         except KeyError:
-            profiles = default_profiles
-            if self.args.profiles:
-                profiles += list(self.args.profiles)
-            # noinspection PyUnresolvedReferences
-            addPloneSite(
-                app,
-                self.args.sitepath,
-                title=self.args.title,
-                profile_id=_DEFAULT_PROFILE,
-                extension_ids=profiles,
-                setup_content=True,
-                default_language=self.args.language
-            )
-            # noinspection PyUnresolvedReferences
-            self.portal = app.unrestrictedTraverse(self.args.sitepath)
+            self.portal = self.create_site()
         setSite(self.portal)
         # Extract zipfile
         self.tempdir = tempfile.mkdtemp()
@@ -137,6 +121,22 @@ class Main:
             self.portal[c].clearFindAndRebuild()
 
         transaction.commit()
+
+    def create_site(self):
+        profiles = default_profiles
+        if self.args.profiles:
+            profiles.extend(self.args.profiles)
+        addPloneSite(
+            app,
+            self.args.sitepath,
+            title=self.args.title,
+            profile_id=_DEFAULT_PROFILE,
+            extension_ids=profiles,
+            setup_content=True,
+            default_language=self.args.language
+        )
+        self.portal = app.unrestrictedTraverse(self.args.sitepath)
+        return self.portal
 
     def get_catalog(self, portal_type):
         """grab the first catalog we are indexed in
