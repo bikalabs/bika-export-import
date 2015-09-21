@@ -57,6 +57,27 @@ export_types = [
     'Supplier',
     'SupplierContact',
     'WorksheetTemplate',
+    #
+    'ARReport',
+    'Analysis',
+    'AnalysisRequest',
+    'Attachment',
+    'Batch',
+    'BatchFolder',
+    'Calculations',
+    'ClientFolder',
+    'DuplicateAnalysis',
+    'Invoice',
+    'InvoiceBatch',
+    'Pricelist',
+    'ReferenceAnalysis',
+    'ReferenceSample',
+    'RejectAnalysis',
+    'Sample',
+    'SamplePartition',
+    'SupplyOrder',
+    'SupplyOrderItem',
+    'Worksheet'
 ]
 
 # fieldnames that are never exported
