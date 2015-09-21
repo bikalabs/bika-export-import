@@ -214,7 +214,7 @@ class Main:
         outval = self.mutate(instance, field, value)
         if field.getName() == 'id':
             # I don't know why, but if we use field.set for setting the id, it
-            # lands in the database as a unicode string, causing catalog failure
+            # lands in the database as a unicode string causing catalog failure
             instance.id = outval
         else:
             field.set(instance, outval)
@@ -349,9 +349,9 @@ class Main:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Import bika setupdata created by export_bika_setup.py',
-        epilog='This script is meant to be run with zopepy or bin/instance. See'
-               ' http://docs.plone.org/develop/plone/misc/commandline.html for'
-               ' details.'
+        epilog='This script is meant to be run with zopepy or bin/instance.'
+               ' See http://docs.plone.org/develop/plone/misc/commandline.html'
+               ' for details.'
     )
     parser.add_argument(
         '-s',

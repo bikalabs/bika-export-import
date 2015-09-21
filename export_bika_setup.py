@@ -80,6 +80,7 @@ ignore_fields = [
     'nextPreviousEnabled',
 ]
 
+app = app  # flake8: noqa
 
 class Main:
     def __init__(self, args):
@@ -272,7 +273,8 @@ class Main:
             instance = brain.getObject()
             # path
             path = '/'.join(instance.getPhysicalPath()[:-1])
-            ws.cell(column=1, row=row + 2).value = path.replace(portal_path, '')
+            ws.cell(column=1, row=row + 2).value = \
+                path.replace(portal_path, '')
             # uid
             ws.cell(column=2, row=row + 2).value = instance.UID()
             # then schema field values
@@ -284,9 +286,9 @@ class Main:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Export bika_setup into an Open XML (XLSX) workbook',
-        epilog='This script is meant to be run with zopepy or bin/instance. See'
-               ' http://docs.plone.org/develop/plone/misc/commandline.html for'
-               ' details.'
+        epilog='This script is meant to be run with zopepy or bin/instance.'
+               'See http://docs.plone.org/develop/plone/misc/commandline.html'
+               'for details.'
     )
     parser.add_argument(
         '-s',
